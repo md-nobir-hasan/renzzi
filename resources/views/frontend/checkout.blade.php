@@ -1,0 +1,329 @@
+@extends('frontend.layouts.app')
+@push('custom-css')
+    <style>
+        /* Chrome, Safari, Edge, Opera */
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        /* Firefox */
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+
+        .card {
+            font-size: 15px;
+        }
+
+        #cart_show input {
+            width: 20px;
+            text-align: center;
+            border: 1px solid #cd9f9f;
+        }
+
+        #cart_show button {
+            width: 21px;
+            text-align: center;
+            border: 1px solid #cd9f9f;
+        }
+
+        #cart_show img {
+            max-height: 50px;
+        }
+
+        .header {
+            font-weight: bold;
+        }
+
+        .total-div span {
+            font-weight: bold;
+            font-size: 17px;
+        }
+    </style>
+@endpush
+@section('page_conent')
+    <div class="main-content-wrapper home-page">
+        <div class="wrapper-container" style="padding-top: 74px !important;">
+            <form action="{{ route('order.store') }}" method="POST">
+                @csrf
+                {{-- cart product show  --}}
+                <div class="card text-center mt-4">
+                    <div class="card-header">
+                        <h1 class="py-3">Your all selected products</h1>
+                        <div class="table-responsive">
+                            <table class="table table-striped text-center">
+                                <thead>
+                                    <tr>
+                                        <th>Image</th>
+                                        <th>Price</th>
+                                        <th>Qty</th>
+                                        <th>total</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="cart_show">
+                                    <tr>
+                                        <td colspan="4">There are no products</td>
+                                    </tr>
+
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <th></th>
+                                        <th></th>
+                                        <th>Total =</th>
+                                        <th>৳<span class="all-total"></span></th>
+                                    </tr>
+                                </tfoot>
+
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+
+                {{-- checkout form  --}}
+
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h3 class="text-center"> Fill up the form </h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="name" class="form-label">Full Name <span
+                                        class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="name" id="name"
+                                    placeholder="Enter your full name" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="phone" class="form-label">Phone No.<span class="text-danger">*</span></label>
+                                <input type="tel" class="form-control" name="phone" id="phone"
+                                    placeholder="Enter your phone number" required>
+                            </div>
+                            @if (isset($shippings))
+                                <div class="col-md-4 mb-3">
+                                    <label for="shipping_id" class="form-label">Delivery Charge<span
+                                            class="text-danger">*</span></label>
+                                    <select name="shipping_id" class="form-select" id="shipping_id" required>
+                                        <option value="">Select shipping area</option>
+                                        @foreach ($shippings as $shipping)
+                                            <option value="{{ $shipping->id ?? old('shipping') }}">
+                                                {{ $shipping->type . '(' . en2bn($shipping->price) . '৳)' }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            @endif
+                            <div class="col-md-12 mb-3">
+                                <label for="address" class="form-label">Address<span class="text-danger">*</span></label>
+                                <textarea name="address" class="form-control" id="address" cols="30" rows="3"
+                                    placeholder="Enter your full address" required></textarea>
+                            </div>
+
+                            <div class="col-md-4 mb-3">
+                                <label for="payment_id" class="form-label">Payment system <span
+                                        class="text-danger">*</span></label>
+                                <select name="payment_id" id="payment_id" class="form-select">
+                                    {{-- <option value="">Cash On Delivery</option> --}}
+                                    @foreach($payments as $payment)
+                                        <option value="{{ $payment->id }}">{{ $payment->payment }}</option>
+                                    @endforeach
+
+                                </select>
+                            </div>
+
+                                <div class="row">
+                                    <div class="col-md-8 m-auto shadow p-4 payment-details-div" style="display: none;">
+                                        <div class="border border-warning p-4">
+                                            <span class="payment-details"></span>
+                                        </div>
+                                        <div class="mt-4" >
+                                            <label for="payment_number">Payment Number:</label>
+                                            <input type="tel" class="form-control" placeholder="Enter Payment Number" name="payment_number" id="payment_number">
+                                        </div>
+                                        <div class="mt-1">
+                                            <label for="transection_id">Transection ID:</label>
+                                            <input type="text" class="form-control"  placeholder="Enter Transection id" name="transection" id="transection_id">
+                                        </div>
+                                    </div>
+                                </div>
+
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <div class="row ">
+                            <div class="col-md-11 m-auto">
+
+                                <button class="btn w-100">Confirm Order</button>
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+@endsection
+
+@push('custom-js')
+    <script>
+        var d = document;
+        let card_body = document.getElementById("cart_show");
+        let cart_product = JSON.parse(localStorage.getItem('product_storage'));
+        let appends = ``;
+
+        for (let item in cart_product) {
+            console.log(cart_product[item])
+            appends += ` <tr>
+                            <td><img src="${cart_product[item].img}" alt=""></td>
+                            <td>৳<span class='price'>${cart_product[item].dis_price}</span></td>
+                            <td>
+                                <div class="input-group justify-content-center">
+                                    <button class="btn btn-sm btn-outline-danger minus-btn" type="button">-</button>
+
+                                    <input type="text" name='product[${item}][qty]' value="১" class='qty'>
+                                    <button class="btn btn-sm btn-outline-primary plus-btn" type="button">+</button>
+                                </div>
+                            </td>
+                            <td> ৳<span
+                                    class="total-price">${cart_product[item].dis_price}</span>
+                            </td>
+                            <td><span class='text-danger remove-product' role='button' id="${item}"><i
+                                        class="fa-solid fa-trash"></i></span></td>
+                        </tr>`;
+
+
+        }
+
+        card_body.innerHTML = appends;
+        let total_count = document.querySelectorAll('.total-count');
+        let total_element = document.getElementById('toal');
+
+        totalPriceCount();
+
+        //qty increment
+        $('.plus-btn').on('click', function() {
+            let index = $(this).index('.plus-btn');
+            let qty = Number(bn2en($('.qty').eq(index).val())) + 1;
+            if (qty > 5) {
+                toastr.error("You can't select more than 5 product");
+            } else {
+                let price = Number(bn2en($('.price').eq(index).text()));
+                let total_price = qty * price;
+                $('.qty').eq(index).val(en2bn(String(qty)));
+                $('.total-price').eq(index).text(en2bn(String(total_price)));
+                totalPriceCount();
+            }
+        })
+
+        //qty decrement
+        $('.minus-btn').on('click', function() {
+            let index = $(this).index('.minus-btn');
+            let qty = Number(bn2en($('.qty').eq(index).val())) - 1;
+            if (qty < 1) {
+                toastr.error("You have to select at least one product");
+            } else {
+                let price = Number(bn2en($('.price').eq(index).text()));
+                let total_price = qty * price;
+                $('.qty').eq(index).val(en2bn(String(qty)));
+                $('.total-price').eq(index).text(en2bn(String(total_price)));
+                totalPriceCount();
+            }
+        })
+
+        // function increment(element) {
+        //     element.forEach(item => {
+        //         item.addEventListener('click', function(event) {
+        //             if (Number(this.nextElementSibling.value) > 4) {
+        //                 alert("You can't select more than 5 product")
+        //             } else {
+        //                 let id = this.getAttribute('id');
+        //                 let price = Number(d.querySelector(`.price${id}`).textContent);
+        //                 let total_priceE = d.querySelector(`.total-price${id}`);
+        //                 let qty = Number(this.nextElementSibling.value) + 1;
+        //                 this.nextElementSibling.value = qty;
+        //                 let total_price = price * qty;
+        //                 total_priceE.textContent = total_price;
+        //                 totalPriceCount();
+        //             }
+        //         });
+        //     });
+        // }
+
+
+        // function decrement(element) {
+        //     element.forEach(item => {
+        //         item.addEventListener('click', function(event) {
+        //             if (Number(this.previousElementSibling.value) < 2) {
+        //                 alert("You have to select at least one product")
+        //             } else {
+        //                 let id = this.getAttribute('id');
+        //                 let price = Number(d.querySelector(`.price${id}`).textContent);
+        //                 let total_priceE = d.querySelector(`.total-price${id}`);
+        //                 let qty = Number(this.previousElementSibling.value) - 1;
+        //                 this.previousElementSibling.value = qty;
+        //                 let total_price = price * qty;
+        //                 total_priceE.textContent = total_price;
+        //                 totalPriceCount();
+        //             }
+        //         });
+        //     })
+        // }
+
+        function totalPriceCount() {
+            let total = 0;
+            $('.total-price').each(function() {
+                total += Number(bn2en($(this).text()));
+            });
+            console.log('I am total price',total);
+            $('.all-total').text(en2bn(String(total)));
+        }
+
+        //remove product from cart
+        let remove = d.querySelectorAll('.remove-product');
+        let cart_store = JSON.parse(localStorage.getItem('product_storage'));
+        remove.forEach((item, index) => {
+            item.addEventListener('click', function() {
+                let id = item.getAttribute('id');
+                if (cart_store[id]) {
+                    item.parentElement.parentElement.remove();
+                    delete cart_store[id];
+                    localStorage.setItem('product_storage', JSON.stringify(cart_store));
+                    count_mobile.innerText = Object.keys(cart_store).length;
+                    counts.innerText = Object.keys(cart_store).length + ' item(s)';
+                }
+
+            });
+        });
+    </script>
+
+    <script>
+        // $('#payment_number').hide();
+        // $('#transection_id').hide();
+        $('#payment_id').on('change',function(){
+            let payment_id = $(this).val();
+            $.ajax({
+                url: "{{route('ajax-fetch')}}",
+                method: 'GET',
+                async: false,
+                data:{
+                    'id':payment_id
+                },
+                success: function(response) {
+                    if(response.description){
+                        $('.payment-details').html(response.description);
+                        $('.payment-details-div').show();
+                        $('.payment-details-div input').prop('required',true)
+                    }else{
+                        $('.payment-details').html(' ');
+                        $('.payment-details-div').hide();
+                        $('.payment-details-div input').prop('required',false)
+                    }
+                }
+            })
+        });
+    </script>
+@endpush
